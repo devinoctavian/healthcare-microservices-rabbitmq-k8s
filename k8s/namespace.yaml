@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: klinik-antrian
+  labels:
+    app: klinik-antrian
+    environment: development

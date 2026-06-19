@@ -1,0 +1,171 @@
+version: '3.8'
+
+services:
+  # ============================================
+  # DATABASE
+  # ============================================
+  mysql:
+    image: mysql:8.0
+    container_name: klinik-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_ALLOW_EMPTY_PASSWORD: "no"
+    ports:
+      - "3312:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpassword"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - klinik-network
+
+  # ============================================
+  # MESSAGE BROKER
+  # ============================================
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: klinik-rabbitmq
+    restart: unless-stopped
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - klinik-network
+
+  # ============================================
+  # BACKEND SERVICES
+  # ============================================
+  auth-service:
+    build: ./auth-service
+    container_name: klinik-auth-service
+    restart: unless-stopped
+    ports:
+      - "5001:5001"
+    environment:
+      - PORT=5001
+      - JWT_SECRET=klinikrahasia
+      - DB_NAME=auth_db
+      - DB_USER=root
+      - DB_PASS=rootpassword
+      - DB_HOST=mysql
+      - DB_PORT=3306
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - klinik-network
+
+  doctor-service:
+    build: ./doctor-service
+    container_name: klinik-doctor-service
+    restart: unless-stopped
+    ports:
+      - "5002:5002"
+    environment:
+      - PORT=5002
+      - JWT_SECRET=klinikrahasia
+      - DB_NAME=doctor_db
+      - DB_USER=root
+      - DB_PASS=rootpassword
+      - DB_HOST=mysql
+      - DB_PORT=3306
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - klinik-network
+
+  patient-service:
+    build: ./patient-service
+    container_name: klinik-patient-service
+    restart: unless-stopped
+    ports:
+      - "5003:5003"
+    environment:
+      - PORT=5003
+      - JWT_SECRET=klinikrahasia
+      - DB_NAME=patient_db
+      - DB_USER=root
+      - DB_PASS=rootpassword
+      - DB_HOST=mysql
+      - DB_PORT=3306
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - klinik-network
+
+  queue-service:
+    build: ./queue-service
+    container_name: klinik-queue-service
+    restart: unless-stopped
+    ports:
+      - "5004:5004"
+    environment:
+      - PORT=5004
+      - JWT_SECRET=klinikrahasia
+      - DB_NAME=queue_db
+      - DB_USER=root
+      - DB_PASS=rootpassword
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - RABBITMQ_URL=amqp://rabbitmq:5672
+    depends_on:
+      mysql:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - klinik-network
+
+  transformer-service:
+    build: ./transformer-service
+    container_name: klinik-transformer-service
+    restart: unless-stopped
+    environment:
+      - RABBITMQ_URL=amqp://rabbitmq:5672
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - klinik-network
+
+  # ============================================
+  # FRONTEND
+  # ============================================
+  frontend:
+    build: ./frontend
+    container_name: klinik-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      - auth-service
+      - doctor-service
+      - patient-service
+      - queue-service
+    networks:
+      - klinik-network
+
+# ============================================
+# NETWORKS & VOLUMES
+# ============================================
+networks:
+  klinik-network:
+    driver: bridge
+
+volumes:
+  mysql_data:
+  rabbitmq_data:

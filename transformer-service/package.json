@@ -1,0 +1,13 @@
+{
+  "name": "transformer-service",
+  "version": "1.0.0",
+  "description": "Integration layer for transforming JSON queue events to XML",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "amqplib": "^0.10.3",
+    "xml2js": "^0.6.2"
+  }
+}
