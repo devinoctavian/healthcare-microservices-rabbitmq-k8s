@@ -311,10 +311,3 @@ Puskesmas-antrian-eai/
 ├── init-db.sql              # MySQL database initialization
 └── docker-compose.yml       # Full local stack definition
 ```
-
----
-
-## 👥 Authors
-
-Tugas Besar — **Enterprise Application Integration (EAI)**  
-Program Studi Informatika · Institut Teknologi Bandung (or your institution)
